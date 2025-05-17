@@ -12,8 +12,10 @@ async def cmd_start(message: Message):
     kb.button(text="📦 Каталог")
     kb.button(text="💰 Корзина")
     kb.button(text="📢 Отзывы")
+    kb.button(text="📢 Отзывы оставить")
     kb.button(text="💬 Задать вопрос")
     kb.button(text="🔔 Подписаться на акции")
+    kb.button(text="📦 Статус заказа")
     kb.adjust(2, 2, 1)  # по 2 кнопки в ряду, последняя в отдельной строке
 
     await message.answer(

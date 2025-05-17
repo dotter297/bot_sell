@@ -1,43 +1,46 @@
+from aiogram.fsm.state import StatesGroup, State
 from aiogram import Router, F
-from aiogram.types import Message
-from app.database.db import AsyncSessionLocal
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.context import FSMContext
 from app.database.models import Feedback
-from app.config import load_config
+from app.database.db import AsyncSessionLocal
+from aiogram.filters import Command
+from app.handlers import admin
+from sqlalchemy import select
+
+class LeaveFeedback(StatesGroup):
+    writing = State()
 
 router = Router()
-config = load_config()
+
+@router.message(F.text == "📢 Отзывы оставить")
+async def start_feedback(message: Message, state: FSMContext):
+    await message.answer("✏️ Напишіть ваш відгук:")
+    await state.set_state(LeaveFeedback.writing)
+
+@router.message(LeaveFeedback.writing)
+async def save_feedback(message: Message, state: FSMContext):
+    async with AsyncSessionLocal() as session:
+        session.add(Feedback(
+            user_id=message.from_user.id,
+            name=message.from_user.full_name,
+            feedback=message.text
+        ))
+        await session.commit()
+    await message.answer("✅ Дякуємо! Ваш відгук надіслано на перевірку.")
+    await state.clear()
 
 @router.message(F.text == "📢 Отзывы")
-async def show_feedbacks(message: Message):
+async def show_reviews(message: Message):
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            Feedback.__table__.select().order_by(Feedback.id.desc()).limit(3)
+            select(Feedback).where(Feedback.confirmed == True).order_by(Feedback.created_at.desc()).limit(10)
         )
-        feedbacks = result.fetchall()
+        feedbacks = result.scalars().all()
 
     if not feedbacks:
-        await message.answer("Отзывов пока нет.")
+        await message.answer("Поки немає підтверджених відгуків.")
         return
 
-    text = "\n\n".join([f"“{f._mapping['text']}” — {f._mapping['name']}" for f in feedbacks])
-    await message.answer(f"📢 Отзывы:\n\n{text}")
-
-# Только для админов — добавление отзыва
-@router.message(F.text.startswith("/add_feedback"))
-async def add_feedback(message: Message):
-    if message.from_user.id not in config.admin_ids:
-        return
-
-    try:
-        parts = message.text.split(maxsplit=2)
-        name, text = parts[1], parts[2]
-    except IndexError:
-        await message.answer("Используйте: /add_feedback Имя Текст_отзыва")
-        return
-
-    async with AsyncSessionLocal() as session:
-        session.add(Feedback(name=name, text=text))
-        await session.commit()
-
-    await message.answer("✅ Отзыв добавлен.")
-
+    for fb in feedbacks:
+        await message.answer(f"📝 {fb.name}:\n{fb.feedback}")
