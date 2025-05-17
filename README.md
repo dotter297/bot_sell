@@ -65,7 +65,7 @@ Telegram-бот для магазинов, позволяющий продава
 ### ↓ Клонировать репозиторий
 
 ```bash
-git clone https://github.com/reda1lend/sell_bot.git
+git clone https://github.com/reda1lend/bot_sell.git
 cd sell_bot
 ```
 
